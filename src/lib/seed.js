@@ -6,19 +6,22 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 import Product from '../models/Product.js';
 import Category from '../models/Category.js';
+import { connectDB } from './db.js';
 
 async function seed() {
   try {
-    const uri = process.env.MONGODB_URI;
-    if (!uri) {
-      throw new Error('MONGODB_URI nije pronađen u .env.local fajlu!');
+    await connectDB();
+    console.log('Connected to MongoDB.');
+
+    const [categoryCount, productCount] = await Promise.all([
+      Category.countDocuments(),
+      Product.countDocuments(),
+    ]);
+
+    if (categoryCount > 0 || productCount > 0) {
+      console.log('Database already contains catalog data; skipping seed.');
+      return;
     }
-
-    await mongoose.connect(uri);
-    console.log('Spajanje na Atlas bazu uspješno!');
-
-    await Product.deleteMany({});
-    await Category.deleteMany({});
 
     const cat1 = await Category.create({ name: 'Muška odjeća', slug: 'muska-odjeca' });
     const cat2 = await Category.create({ name: 'Ženska odjeća', slug: 'zenska-odjeca' });
@@ -42,11 +45,17 @@ async function seed() {
       },
     ]);
 
-    console.log('Baza je uspješno napunjena podacima!');
-    process.exit(0);
+    console.log('Database seeded with sample categories and products.');
   } catch (error) {
-    console.error('Greška pri popunjavanju baze:', error);
-    process.exit(1);
+    console.error('Failed to seed database:', error);
+    process.exitCode = 1;
+  } finally {
+    try {
+      await mongoose.disconnect();
+    } catch (error) {
+      console.error('Failed to close MongoDB connection:', error);
+      process.exitCode = 1;
+    }
   }
 }
 

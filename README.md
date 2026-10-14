@@ -1,5 +1,27 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## MongoDB Atlas
+
+Create a `.env.local` file in the project root and set `MONGODB_URI` to your Atlas connection string:
+
+```env
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-host>/bstore?retryWrites=true&w=majority
+```
+
+Replace the placeholders with your Atlas database user and cluster host. URL-encode special characters in the password, and make sure the database user and your current IP address are permitted in Atlas. Keep `.env.local` private and do not commit it.
+
+The product and category API endpoints use this connection. To seed sample categories and products when the catalog has no existing data, run:
+
+```bash
+npm run seed
+```
+
+The seed script never deletes existing catalog data and skips seeding if products or categories already exist.
+
+### Authentication
+
+Set `JWT_SECRET` in `.env.local` to a private random value of at least 32 characters. Registration and sign-in create a signed session in an HTTP-only cookie; registration signs the new user in automatically.
+
 ## Getting Started
 
 First, run the development server:

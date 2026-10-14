@@ -20,6 +20,7 @@ export async function POST(request) {
     const newCategory = await Category.create({ name, slug });
     return NextResponse.json(newCategory, { status: 201 });
   } catch (error) {
+    console.error('API Categories POST Error:', error);
     return NextResponse.json({ message: 'Greška pri kreiranju kategorije' }, { status: 500 });
   }
 }

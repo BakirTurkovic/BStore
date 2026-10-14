@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '../../../src/lib/db.js';
 import Product from '../../../src/models/Product.js';
-import Category from '../../../src/models/Category.js'; // Važno za .populate()
+import '../../../src/models/Category.js';
 
 export async function GET(request) {
   try {
@@ -26,6 +26,7 @@ export async function POST(request) {
     const newProduct = await Product.create(body);
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error) {
+    console.error('API Products POST Error:', error);
     return NextResponse.json({ message: 'Greška pri kreiranju proizvoda' }, { status: 500 });
   }
 }
