@@ -5,6 +5,8 @@ import { ArrowDown, ArrowRight, Check, ShoppingBag, Sparkles } from 'lucide-reac
 import { useEffect, useMemo, useState } from 'react';
 import { useCart } from '../src/context/CartContext';
 import ProductVariantOptions from '../src/components/ProductVariantOptions';
+import ProductGenderFilter from '../src/components/ProductGenderFilter';
+import { getProductGender } from '../src/lib/productGender';
 
 const formatPrice = (price) =>
   `${new Intl.NumberFormat('bs-BA', {
@@ -16,6 +18,7 @@ export default function HomePage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedGender, setSelectedGender] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [addedProduct, setAddedProduct] = useState('');
@@ -65,17 +68,20 @@ export default function HomePage() {
   }, []);
 
   const visibleProducts = useMemo(() => {
-    const categoryProducts = selectedCategory
-      ? products.filter(
-          (product) =>
-            product.category?._id === selectedCategory || product.category === selectedCategory
-        )
-      : products;
+    const categoryProducts = products.filter((product) => {
+      const matchesCategory =
+        !selectedCategory ||
+        product.category?._id === selectedCategory ||
+        product.category === selectedCategory;
+      const matchesGender =
+        selectedGender === 'ALL' || getProductGender(product) === selectedGender;
+      return matchesCategory && matchesGender;
+    });
 
     return categoryProducts.slice(0, 8);
-  }, [products, selectedCategory]);
+  }, [products, selectedCategory, selectedGender]);
 
-  const heroProduct = products.find((product) => product.imageUrl);
+  const heroProduct = visibleProducts.find((product) => product.imageUrl);
 
   function handleAddToCart(product) {
     const variant = variants[product._id] || {};
@@ -93,6 +99,17 @@ export default function HomePage() {
       ...current,
       [productId]: { ...current[productId], [field]: value },
     }));
+  }
+
+  function updateGender(gender) {
+    setSelectedGender(gender);
+    setSelectedCategory('');
+  }
+
+  function updateCategory(category) {
+    setSelectedCategory(category._id);
+    if (category.slug === 'muska-odjeca') setSelectedGender('MEN');
+    if (category.slug === 'zenska-odjeca') setSelectedGender('WOMEN');
   }
 
   return (
@@ -203,6 +220,9 @@ export default function HomePage() {
           </span>
         </div>
 
+        <div className="mb-4">
+          <ProductGenderFilter value={selectedGender} onChange={updateGender} />
+        </div>
         <div className="flex gap-3 overflow-x-auto pb-2">
           <button
             type="button"
@@ -220,7 +240,7 @@ export default function HomePage() {
             <button
               type="button"
               key={category._id}
-              onClick={() => setSelectedCategory(category._id)}
+              onClick={() => updateCategory(category)}
               aria-pressed={selectedCategory === category._id}
               className={`shrink-0 rounded-xl border px-5 py-3 text-sm font-medium transition ${
                 selectedCategory === category._id
@@ -243,7 +263,13 @@ export default function HomePage() {
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
               {selectedCategory
                 ? categories.find((category) => category._id === selectedCategory)?.name
-                : 'Istaknuti proizvodi'}
+                : selectedGender === 'WOMEN'
+                  ? 'Ženska ponuda'
+                  : selectedGender === 'MEN'
+                    ? 'Muška ponuda'
+                    : selectedGender === 'UNISEX'
+                      ? 'Unisex ponuda'
+                      : 'Istaknuti proizvodi'}
             </h2>
           </div>
           <span className="text-sm text-zinc-500">

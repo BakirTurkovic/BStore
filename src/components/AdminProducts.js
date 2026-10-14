@@ -3,12 +3,14 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import ImageUpload from './ImageUpload.js';
+import { PRODUCT_GENDER_LABELS } from '../lib/productGender.js';
 
 const initialForm = {
   name: '',
   description: '',
   price: '',
   category: '',
+  gender: 'UNISEX',
   imageUrl: '',
   sizes: '',
   colors: '',
@@ -124,6 +126,7 @@ export default function AdminProducts() {
           description: form.description,
           price: Number(form.price),
           category: form.category,
+          gender: form.gender,
           imageUrl: form.imageUrl,
           sizes: parseOptions(form.sizes),
           colors: parseOptions(form.colors),
@@ -190,6 +193,7 @@ export default function AdminProducts() {
       description: product.description,
       price: String(product.price),
       category: product.category?._id || '',
+      gender: product.gender || 'UNISEX',
       imageUrl: product.imageUrl,
       sizes: Array.isArray(product.sizes) ? product.sizes.join(', ') : '',
       colors: Array.isArray(product.colors) ? product.colors.join(', ') : '',
@@ -291,6 +295,26 @@ export default function AdminProducts() {
               {categories.map((category) => (
                 <option key={category._id} value={category._id}>
                   {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="product-gender" className="mb-1.5 block text-sm font-medium text-neutral-300">
+              Namijenjeno za
+            </label>
+            <select
+              id="product-gender"
+              name="gender"
+              required
+              value={form.gender}
+              onChange={updateField}
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3.5 py-2.5 text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20"
+            >
+              {Object.entries(PRODUCT_GENDER_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -419,7 +443,7 @@ export default function AdminProducts() {
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-sm font-semibold text-white">{product.name}</h3>
                     <p className="mt-1 truncate text-xs text-neutral-400">
-                      {product.category?.name || 'Uncategorized'}
+                      {product.category?.name || 'Uncategorized'} · {PRODUCT_GENDER_LABELS[product.gender] || PRODUCT_GENDER_LABELS.UNISEX}
                     </p>
                     {(product.sizes?.length > 0 || product.colors?.length > 0) && (
                       <p className="mt-1 truncate text-xs text-neutral-500">

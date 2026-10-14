@@ -49,6 +49,10 @@ export default function Navbar() {
 
   const userInitial = user?.name?.trim().charAt(0).toUpperCase();
 
+  function navigateToGender(gender) {
+    window.dispatchEvent(new CustomEvent('bstore-gender-navigation', { detail: gender }));
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-zinc-950/85 shadow-lg shadow-black/5 backdrop-blur-md">
       <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:min-h-[4.5rem] sm:px-6 lg:px-8">
@@ -62,6 +66,20 @@ export default function Navbar() {
             className="shrink-0 rounded-lg px-2 py-2 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/5 hover:text-white sm:px-2.5 sm:text-sm"
           >
             Proizvodi
+          </Link>
+          <Link
+            href="/products?gender=WOMEN"
+            onClick={() => navigateToGender('WOMEN')}
+            className="hidden shrink-0 rounded-lg px-2 py-2 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/5 hover:text-white md:inline-flex md:text-sm"
+          >
+            Žene
+          </Link>
+          <Link
+            href="/products?gender=MEN"
+            onClick={() => navigateToGender('MEN')}
+            className="hidden shrink-0 rounded-lg px-2 py-2 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/5 hover:text-white md:inline-flex md:text-sm"
+          >
+            Muškarci
           </Link>
 
           <Link

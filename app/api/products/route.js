@@ -4,6 +4,7 @@ import Product from '../../../src/models/Product.js';
 import Category from '../../../src/models/Category.js';
 import { getSessionUser, SESSION_COOKIE } from '../../../src/lib/auth.js';
 import { normalizeProductOptions } from '../../../src/lib/productOptions.js';
+import { PRODUCT_GENDERS } from '../../../src/lib/productGender.js';
 
 function getAdminUser(request) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -15,8 +16,29 @@ export async function GET(request) {
     await connectDB();
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
-    
-    const filter = category ? { category } : {};
+    const gender = searchParams.get('gender');
+    if (category && !/^[a-f\d]{24}$/i.test(category)) {
+      return NextResponse.json({ message: 'Invalid category ID.' }, { status: 400 });
+    }
+    if (gender && !PRODUCT_GENDERS.includes(gender)) {
+      return NextResponse.json({ message: 'Invalid product gender.' }, { status: 400 });
+    }
+
+    const legacyCategories = await Category.find({
+      slug: { $in: ['muska-odjeca', 'zenska-odjeca'] },
+    }).select('_id slug');
+    for (const legacyCategory of legacyCategories) {
+      await Product.updateMany(
+        { category: legacyCategory._id, gender: { $exists: false } },
+        { $set: { gender: legacyCategory.slug === 'muska-odjeca' ? 'MEN' : 'WOMEN' } }
+      );
+    }
+    await Product.updateMany({ gender: { $exists: false } }, { $set: { gender: 'UNISEX' } });
+
+    const filter = {
+      ...(category ? { category } : {}),
+      ...(gender ? { gender } : {}),
+    };
     const products = await Product.find(filter).populate('category');
     
     return NextResponse.json(products);
@@ -55,11 +77,15 @@ export async function POST(request) {
     const price = Number(body?.price);
     const imageUrl = typeof body?.imageUrl === 'string' ? body.imageUrl.trim() : '';
     const categoryId = typeof body?.category === 'string' ? body.category : '';
+    const gender = typeof body?.gender === 'string' ? body.gender : 'UNISEX';
     const sizes = normalizeProductOptions(body?.sizes, 'Sizes');
     const colors = normalizeProductOptions(body?.colors, 'Colors');
 
-    if (sizes.error || colors.error) {
-      return NextResponse.json({ message: sizes.error || colors.error }, { status: 400 });
+    if (sizes.error || colors.error || !PRODUCT_GENDERS.includes(gender)) {
+      return NextResponse.json(
+        { message: sizes.error || colors.error || 'Select a valid product gender.' },
+        { status: 400 }
+      );
     }
 
     if (!name || !description || !imageUrl || !categoryId || !Number.isFinite(price) || price <= 0) {
@@ -87,6 +113,7 @@ export async function POST(request) {
       price,
       imageUrl,
       category: categoryId,
+      gender,
       sizes: sizes.options,
       colors: colors.options,
     });

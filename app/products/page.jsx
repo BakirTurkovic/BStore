@@ -5,6 +5,8 @@ import { Check, ShoppingBag } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useCart } from '../../src/context/CartContext';
 import ProductVariantOptions from '../../src/components/ProductVariantOptions';
+import ProductGenderFilter from '../../src/components/ProductGenderFilter';
+import { getProductGender } from '../../src/lib/productGender';
 
 const formatPrice = (price) =>
   `${new Intl.NumberFormat('bs-BA', {
@@ -16,6 +18,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedGender, setSelectedGender] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [addedProduct, setAddedProduct] = useState('');
@@ -49,6 +52,14 @@ export default function ProductsPage() {
         if (mounted) {
           setProducts(productsData);
           setCategories(categoriesData);
+          const requestedGender = new URLSearchParams(window.location.search).get('gender');
+          if (
+            requestedGender === 'MEN' ||
+            requestedGender === 'WOMEN' ||
+            requestedGender === 'UNISEX'
+          ) {
+            setSelectedGender(requestedGender);
+          }
         }
       } catch (error) {
         console.error('Greška pri učitavanju proizvoda:', error);
@@ -59,21 +70,45 @@ export default function ProductsPage() {
     }
 
     loadCatalog();
+    function handleGenderNavigation(event) {
+      const gender = event.detail;
+      if (gender === 'MEN' || gender === 'WOMEN' || gender === 'UNISEX') {
+        setSelectedGender(gender);
+        setSelectedCategory('');
+      }
+    }
+    window.addEventListener('bstore-gender-navigation', handleGenderNavigation);
+
     return () => {
       mounted = false;
+      window.removeEventListener('bstore-gender-navigation', handleGenderNavigation);
     };
   }, []);
 
   const visibleProducts = useMemo(
     () =>
-      selectedCategory
-        ? products.filter(
-            (product) =>
-              product.category?._id === selectedCategory || product.category === selectedCategory
-          )
-        : products,
-    [products, selectedCategory]
+      products.filter((product) => {
+        const matchesCategory =
+          !selectedCategory ||
+          product.category?._id === selectedCategory ||
+          product.category === selectedCategory;
+        const matchesGender =
+          selectedGender === 'ALL' || getProductGender(product) === selectedGender;
+        return matchesCategory && matchesGender;
+      }),
+    [products, selectedCategory, selectedGender]
   );
+
+  function updateGender(gender) {
+    setSelectedGender(gender);
+    setSelectedCategory('');
+  }
+
+  function updateCategory(category) {
+    setSelectedCategory(category._id);
+    if (category.slug === 'muska-odjeca') setSelectedGender('MEN');
+    if (category.slug === 'zenska-odjeca') setSelectedGender('WOMEN');
+  }
 
   function handleAddToCart(product) {
     const variant = variants[product._id] || {};
@@ -105,6 +140,8 @@ export default function ProductsPage() {
         </p>
       </header>
 
+      <ProductGenderFilter value={selectedGender} onChange={updateGender} />
+
       <nav aria-label="Filtriraj proizvode po kategoriji" className="flex gap-3 overflow-x-auto pb-2">
         <button
           type="button"
@@ -122,7 +159,7 @@ export default function ProductsPage() {
           <button
             type="button"
             key={category._id}
-            onClick={() => setSelectedCategory(category._id)}
+            onClick={() => updateCategory(category)}
             aria-pressed={selectedCategory === category._id}
             className={`shrink-0 rounded-xl border px-5 py-3 text-sm font-medium transition ${
               selectedCategory === category._id
@@ -137,7 +174,14 @@ export default function ProductsPage() {
 
       <div className="flex items-end justify-between gap-4">
         <h2 className="text-xl font-semibold sm:text-2xl">
-          {categories.find((category) => category._id === selectedCategory)?.name || 'Ponuda'}
+          {categories.find((category) => category._id === selectedCategory)?.name ||
+            (selectedGender === 'WOMEN'
+              ? 'Ženska ponuda'
+              : selectedGender === 'MEN'
+                ? 'Muška ponuda'
+                : selectedGender === 'UNISEX'
+                  ? 'Unisex ponuda'
+                  : 'Ponuda')}
         </h2>
         <span className="text-sm text-zinc-500">
           {loading ? 'Učitavanje...' : `${visibleProducts.length} proizvoda`}

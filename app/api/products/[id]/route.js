@@ -4,6 +4,7 @@ import { getSessionUser, SESSION_COOKIE } from '../../../../src/lib/auth.js';
 import Product from '../../../../src/models/Product.js';
 import Category from '../../../../src/models/Category.js';
 import { normalizeProductOptions } from '../../../../src/lib/productOptions.js';
+import { PRODUCT_GENDERS } from '../../../../src/lib/productGender.js';
 
 function getAdminUser(request) {
   return getSessionUser(request.cookies.get(SESSION_COOKIE)?.value);
@@ -19,11 +20,12 @@ function getProductInput(body) {
   const price = Number(body?.price);
   const imageUrl = typeof body?.imageUrl === 'string' ? body.imageUrl.trim() : '';
   const categoryId = typeof body?.category === 'string' ? body.category : '';
+  const gender = typeof body?.gender === 'string' ? body.gender : 'UNISEX';
   const sizes = normalizeProductOptions(body?.sizes, 'Sizes');
   const colors = normalizeProductOptions(body?.colors, 'Colors');
 
-  if (sizes.error || colors.error) {
-    return { error: sizes.error || colors.error };
+  if (sizes.error || colors.error || !PRODUCT_GENDERS.includes(gender)) {
+    return { error: sizes.error || colors.error || 'Select a valid product gender.' };
   }
   if (!name || !description || !imageUrl || !categoryId || !Number.isFinite(price) || price <= 0) {
     return { error: 'Title, description, positive price, category, and image are required.' };
@@ -42,6 +44,7 @@ function getProductInput(body) {
       price,
       imageUrl,
       category: categoryId,
+      gender,
       sizes: sizes.options,
       colors: colors.options,
     },

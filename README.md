@@ -32,6 +32,8 @@ Password reset tokens are random, one-time tokens stored as SHA-256 hashes and e
 
 Add `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `AWS_S3_BUCKET_NAME` to `.env.local`. Use an IAM user or role with only the `s3:PutObject` permission for the bucket's `products/*` key prefix. The `/admin` page manages products and requires a signed-in account with the `ADMIN` role; its product creation API also checks this role. The `/api/upload` endpoint accepts JPEG, PNG, WebP, or AVIF images up to 5 MB and likewise requires an admin. New accounts are regular users; grant admin access deliberately through your trusted database administration workflow.
 
+Admin product forms can assign each product to men's, women's, or unisex collections. The storefront's gender filters and the “Žene” / “Muškarci” navigation links show products for the selected audience.
+
 The bucket must allow public reads for the `products/*` prefix for the returned S3 image URLs to load in the storefront. Replace `YOUR_BUCKET_NAME` in this policy with your bucket name, and allow the policy through the bucket's Block Public Access settings. This grants public reads only; do not enable public writes:
 
 ```json
