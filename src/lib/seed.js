@@ -7,11 +7,13 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import Product from '../models/Product.js';
 import Category from '../models/Category.js';
 import { connectDB } from './db.js';
+import { CATALOG_CATEGORIES, ensureCatalogCategories } from './catalogCategories.js';
 
 async function seed() {
   try {
     await connectDB();
     console.log('Connected to MongoDB.');
+    await ensureCatalogCategories(Category);
 
     const [categoryCount, productCount] = await Promise.all([
       Category.countDocuments(),
@@ -23,8 +25,10 @@ async function seed() {
       return;
     }
 
-    const cat1 = await Category.create({ name: 'Muška odjeća', slug: 'muska-odjeca' });
-    const cat2 = await Category.create({ name: 'Ženska odjeća', slug: 'zenska-odjeca' });
+    const [cat1, cat2] = await Promise.all([
+      Category.findOne({ slug: CATALOG_CATEGORIES[0].slug }),
+      Category.findOne({ slug: CATALOG_CATEGORIES[1].slug }),
+    ]);
 
     await Product.create([
       {

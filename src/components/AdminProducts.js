@@ -4,7 +4,21 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import ImageUpload from './ImageUpload.js';
 
-const initialForm = { name: '', description: '', price: '', category: '', imageUrl: '' };
+const initialForm = {
+  name: '',
+  description: '',
+  price: '',
+  category: '',
+  imageUrl: '',
+  sizes: '',
+  colors: '',
+};
+
+const parseOptions = (value) =>
+  value
+    .split(',')
+    .map((option) => option.trim())
+    .filter(Boolean);
 
 const formatPrice = (price) =>
   `${new Intl.NumberFormat('bs-BA', {
@@ -41,8 +55,12 @@ export default function AdminProducts() {
   const [form, setForm] = useState(initialForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState('');
+  const [editingProductId, setEditingProductId] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [deleteNotice, setDeleteNotice] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -96,8 +114,10 @@ export default function AdminProducts() {
     setIsSaving(true);
 
     try {
-      const response = await fetch('/api/products', {
-        method: 'POST',
+      const response = await fetch(
+        editingProductId ? `/api/products/${encodeURIComponent(editingProductId)}` : '/api/products',
+        {
+        method: editingProductId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name,
@@ -105,23 +125,84 @@ export default function AdminProducts() {
           price: Number(form.price),
           category: form.category,
           imageUrl: form.imageUrl,
+          sizes: parseOptions(form.sizes),
+          colors: parseOptions(form.colors),
         }),
+        }
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to save the product.');
+      }
+
+      setProducts((current) =>
+        editingProductId
+          ? current.map((product) => (product._id === editingProductId ? data : product))
+          : [data, ...current]
+      );
+      setForm(initialForm);
+      setNotice(editingProductId ? 'Product updated successfully.' : 'Product created successfully.');
+      setEditingProductId('');
+    } catch (saveError) {
+      console.error('Unable to save product:', saveError);
+      setError(saveError.message || 'Unable to save the product.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(product) {
+    if (!window.confirm(`Želite li obrisati proizvod "${product.name}"?`)) return;
+
+    setDeleteError('');
+    setDeleteNotice('');
+    setDeletingProductId(product._id);
+
+    try {
+      const response = await fetch(`/api/products/${encodeURIComponent(product._id)}`, {
+        method: 'DELETE',
       });
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Unable to create the product.');
+        throw new Error(data.message || 'Unable to delete the product.');
       }
 
-      setProducts((current) => [data, ...current]);
-      setForm(initialForm);
-      setNotice('Product created successfully.');
-    } catch (saveError) {
-      console.error('Unable to create product:', saveError);
-      setError(saveError.message || 'Unable to create the product.');
+      setProducts((current) => current.filter((item) => item._id !== product._id));
+      if (editingProductId === product._id) {
+        setEditingProductId('');
+        setForm(initialForm);
+      }
+      setDeleteNotice('Proizvod je uspješno obrisan.');
+    } catch (deleteError) {
+      console.error('Unable to delete product:', deleteError);
+      setDeleteError(deleteError.message || 'Unable to delete the product.');
     } finally {
-      setIsSaving(false);
+      setDeletingProductId('');
     }
+  }
+
+  function handleEdit(product) {
+    setEditingProductId(product._id);
+    setForm({
+      name: product.name,
+      description: product.description,
+      price: String(product.price),
+      category: product.category?._id || '',
+      imageUrl: product.imageUrl,
+      sizes: Array.isArray(product.sizes) ? product.sizes.join(', ') : '',
+      colors: Array.isArray(product.colors) ? product.colors.join(', ') : '',
+    });
+    setError('');
+    setNotice('');
+  }
+
+  function cancelEdit() {
+    setEditingProductId('');
+    setForm(initialForm);
+    setError('');
+    setNotice('');
   }
 
   return (
@@ -141,7 +222,7 @@ export default function AdminProducts() {
           onSubmit={handleSubmit}
           className="h-fit space-y-5 rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5 sm:p-6"
         >
-          <h2 className="text-lg font-semibold">Add a product</h2>
+          <h2 className="text-lg font-semibold">{editingProductId ? 'Edit product' : 'Add a product'}</h2>
 
           <div>
             <label htmlFor="product-name" className="mb-1.5 block text-sm font-medium text-neutral-300">
@@ -215,6 +296,38 @@ export default function AdminProducts() {
             </select>
           </div>
 
+          <div>
+            <label htmlFor="product-sizes" className="mb-1.5 block text-sm font-medium text-neutral-300">
+              Available sizes
+            </label>
+            <input
+              id="product-sizes"
+              name="sizes"
+              value={form.sizes}
+              onChange={updateField}
+              placeholder="S, M, L, XL"
+              maxLength={400}
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3.5 py-2.5 text-white outline-none placeholder:text-neutral-600 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20"
+            />
+            <p className="mt-1 text-xs text-neutral-500">Separate sizes with commas.</p>
+          </div>
+
+          <div>
+            <label htmlFor="product-colors" className="mb-1.5 block text-sm font-medium text-neutral-300">
+              Available colors
+            </label>
+            <input
+              id="product-colors"
+              name="colors"
+              value={form.colors}
+              onChange={updateField}
+              placeholder="Black, White, Navy"
+              maxLength={400}
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3.5 py-2.5 text-white outline-none placeholder:text-neutral-600 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20"
+            />
+            <p className="mt-1 text-xs text-neutral-500">Separate colors with commas.</p>
+          </div>
+
           <ImageUpload
             imageUrl={form.imageUrl}
             onUploadComplete={(imageUrl) => setForm((current) => ({ ...current, imageUrl }))}
@@ -235,13 +348,25 @@ export default function AdminProducts() {
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={isSaving || !form.imageUrl || categories.length === 0}
-            className="w-full rounded-lg bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSaving ? 'Saving product...' : 'Create product'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={isSaving || !form.imageUrl || categories.length === 0}
+              className="flex-1 rounded-lg bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSaving ? 'Saving product...' : editingProductId ? 'Save changes' : 'Create product'}
+            </button>
+            {editingProductId && (
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={isSaving}
+                className="rounded-lg border border-neutral-700 px-4 py-3 text-sm font-medium text-neutral-300 transition hover:bg-neutral-800 hover:text-white disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
 
         <section className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5 sm:p-6">
@@ -259,6 +384,17 @@ export default function AdminProducts() {
               Refresh
             </button>
           </div>
+
+          {deleteNotice && (
+            <p role="status" className="mb-4 rounded-lg bg-emerald-950/70 px-3.5 py-3 text-sm text-emerald-300">
+              {deleteNotice}
+            </p>
+          )}
+          {deleteError && (
+            <p role="alert" className="mb-4 rounded-lg bg-red-950/70 px-3.5 py-3 text-sm text-red-300">
+              {deleteError}
+            </p>
+          )}
 
           {isLoading ? (
             <p className="py-8 text-center text-sm text-neutral-400">Loading products...</p>
@@ -285,8 +421,37 @@ export default function AdminProducts() {
                     <p className="mt-1 truncate text-xs text-neutral-400">
                       {product.category?.name || 'Uncategorized'}
                     </p>
+                    {(product.sizes?.length > 0 || product.colors?.length > 0) && (
+                      <p className="mt-1 truncate text-xs text-neutral-500">
+                        {[
+                          product.sizes?.length ? `Veličine: ${product.sizes.join(', ')}` : '',
+                          product.colors?.length ? `Boje: ${product.colors.join(', ')}` : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    )}
                   </div>
-                  <p className="shrink-0 text-sm font-medium">{formatPrice(Number(product.price))}</p>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <p className="text-sm font-medium">{formatPrice(Number(product.price))}</p>
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(product)}
+                      disabled={Boolean(deletingProductId) || isSaving}
+                      className="rounded-lg border border-neutral-700 px-3 py-2 text-sm font-medium text-neutral-300 transition hover:bg-neutral-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(product)}
+                      disabled={Boolean(deletingProductId)}
+                      aria-label={`Obriši ${product.name}`}
+                      className="rounded-lg border border-red-900/70 px-3 py-2 text-sm font-medium text-red-300 transition hover:border-red-700 hover:bg-red-950/70 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {deletingProductId === product._id ? 'Brisanje...' : 'Obriši'}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

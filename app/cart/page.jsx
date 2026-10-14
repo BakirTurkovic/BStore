@@ -74,7 +74,7 @@ export default function CartPage() {
         <div className="divide-y divide-neutral-800 rounded-2xl border border-neutral-800 bg-neutral-900/50 px-4 sm:px-6">
           {cart.map((item) => (
             <article
-              key={`${item._id}-${item.size || ''}`}
+              key={`${item._id}-${item.size || ''}-${item.color || ''}`}
               className="flex gap-4 py-5 sm:gap-5"
             >
               <div className="h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-neutral-800 sm:h-28 sm:w-24">
@@ -98,6 +98,7 @@ export default function CartPage() {
                 <div className="min-w-0">
                   <h2 className="truncate font-semibold text-white">{item.name}</h2>
                   {item.size && <p className="mt-1 text-sm text-neutral-400">Size: {item.size}</p>}
+                  {item.color && <p className="mt-1 text-sm text-neutral-400">Color: {item.color}</p>}
                   <p className="mt-2 text-sm font-medium text-neutral-300">{formatPrice(item.price)}</p>
                 </div>
 
@@ -107,7 +108,7 @@ export default function CartPage() {
                       type="button"
                       aria-label={`Decrease quantity of ${item.name}`}
                       disabled={item.quantity <= 1}
-                      onClick={() => updateQuantity(item._id, item.size, item.quantity - 1)}
+                      onClick={() => updateQuantity(item._id, item.size, item.color || '', item.quantity - 1)}
                       className="rounded-l-lg p-2.5 text-neutral-300 transition hover:bg-neutral-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <Minus aria-hidden="true" className="h-4 w-4" />
@@ -116,7 +117,7 @@ export default function CartPage() {
                     <button
                       type="button"
                       aria-label={`Increase quantity of ${item.name}`}
-                      onClick={() => updateQuantity(item._id, item.size, item.quantity + 1)}
+                      onClick={() => updateQuantity(item._id, item.size, item.color || '', item.quantity + 1)}
                       className="rounded-r-lg p-2.5 text-neutral-300 transition hover:bg-neutral-800 hover:text-white"
                     >
                       <Plus aria-hidden="true" className="h-4 w-4" />
@@ -128,7 +129,7 @@ export default function CartPage() {
                   <button
                     type="button"
                     aria-label={`Remove ${item.name} from cart`}
-                    onClick={() => removeFromCart(item._id, item.size)}
+                    onClick={() => removeFromCart(item._id, item.size, item.color || '')}
                     className="rounded-lg p-2 text-neutral-500 transition hover:bg-red-950/60 hover:text-red-400"
                   >
                     <Trash2 aria-hidden="true" className="h-4 w-4" />

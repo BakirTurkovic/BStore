@@ -3,6 +3,7 @@ import { connectDB } from '../../../src/lib/db.js';
 import Product from '../../../src/models/Product.js';
 import Category from '../../../src/models/Category.js';
 import { getSessionUser, SESSION_COOKIE } from '../../../src/lib/auth.js';
+import { normalizeProductOptions } from '../../../src/lib/productOptions.js';
 
 function getAdminUser(request) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -54,6 +55,12 @@ export async function POST(request) {
     const price = Number(body?.price);
     const imageUrl = typeof body?.imageUrl === 'string' ? body.imageUrl.trim() : '';
     const categoryId = typeof body?.category === 'string' ? body.category : '';
+    const sizes = normalizeProductOptions(body?.sizes, 'Sizes');
+    const colors = normalizeProductOptions(body?.colors, 'Colors');
+
+    if (sizes.error || colors.error) {
+      return NextResponse.json({ message: sizes.error || colors.error }, { status: 400 });
+    }
 
     if (!name || !description || !imageUrl || !categoryId || !Number.isFinite(price) || price <= 0) {
       return NextResponse.json(
@@ -80,9 +87,8 @@ export async function POST(request) {
       price,
       imageUrl,
       category: categoryId,
-      sizes: Array.isArray(body.sizes)
-        ? body.sizes.filter((size) => typeof size === 'string').map((size) => size.trim()).filter(Boolean)
-        : [],
+      sizes: sizes.options,
+      colors: colors.options,
     });
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error) {

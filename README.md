@@ -24,6 +24,10 @@ Set `JWT_SECRET` in `.env.local` to a private random value of at least 32 charac
 
 The cart is stored in the browser separately for each signed-in account. Guest items are kept separately and move to an account's cart the first time that account signs in on the browser.
 
+### Password reset
+
+Password reset tokens are random, one-time tokens stored as SHA-256 hashes and expire after one hour. In development, the reset link is printed in the server console; configure `APP_URL` to set its base URL. The API returns the same confirmation for known and unknown email addresses. Configure an email provider before enabling password-reset delivery in production.
+
 ### Product image uploads
 
 Add `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `AWS_S3_BUCKET_NAME` to `.env.local`. Use an IAM user or role with only the `s3:PutObject` permission for the bucket's `products/*` key prefix. The `/admin` page manages products and requires a signed-in account with the `ADMIN` role; its product creation API also checks this role. The `/api/upload` endpoint accepts JPEG, PNG, WebP, or AVIF images up to 5 MB and likewise requires an admin. New accounts are regular users; grant admin access deliberately through your trusted database administration workflow.

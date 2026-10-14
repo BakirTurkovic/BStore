@@ -120,6 +120,17 @@ export default function AuthForm({ mode }) {
             />
           </div>
 
+          {!isRegister && (
+            <div className="-mt-2 text-right">
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              >
+                Zaboravili ste lozinku?
+              </Link>
+            </div>
+          )}
+
           {error && (
             <p role="alert" className="rounded-lg bg-red-50 px-3.5 py-3 text-sm text-red-700">
               {error}
