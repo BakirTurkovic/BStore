@@ -22,6 +22,31 @@ The seed script never deletes existing catalog data and skips seeding if product
 
 Set `JWT_SECRET` in `.env.local` to a private random value of at least 32 characters. Registration and sign-in create a signed session in an HTTP-only cookie; registration signs the new user in automatically.
 
+The cart is stored in the browser separately for each signed-in account. Guest items are kept separately and move to an account's cart the first time that account signs in on the browser.
+
+### Product image uploads
+
+Add `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `AWS_S3_BUCKET_NAME` to `.env.local`. Use an IAM user or role with only the `s3:PutObject` permission for the bucket's `products/*` key prefix. The `/admin` page manages products and requires a signed-in account with the `ADMIN` role; its product creation API also checks this role. The `/api/upload` endpoint accepts JPEG, PNG, WebP, or AVIF images up to 5 MB and likewise requires an admin. New accounts are regular users; grant admin access deliberately through your trusted database administration workflow.
+
+The bucket must allow public reads for the `products/*` prefix for the returned S3 image URLs to load in the storefront. Replace `YOUR_BUCKET_NAME` in this policy with your bucket name, and allow the policy through the bucket's Block Public Access settings. This grants public reads only; do not enable public writes:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReadProductImages",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::YOUR_BUCKET_NAME/products/*"
+    }
+  ]
+}
+```
+
+An image upload component is available at `src/components/ImageUpload.js`. In a product form, pass a callback such as `<ImageUpload imageUrl={imageUrl} onUploadComplete={setImageUrl} />`, then submit that returned `imageUrl` with the other product fields to `/api/products`; the product model already requires and stores `imageUrl`.
+
 ## Getting Started
 
 First, run the development server:
