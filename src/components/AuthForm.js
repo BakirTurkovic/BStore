@@ -32,7 +32,12 @@ export default function AuthForm({ mode }) {
       }
 
       window.dispatchEvent(new Event('bstore-auth-changed'));
-      router.push('/');
+      const returnTo = new URLSearchParams(window.location.search).get('next');
+      const destination =
+        returnTo?.startsWith('/') && !returnTo.startsWith('//') && !returnTo.includes('\\')
+          ? returnTo
+          : '/';
+      router.push(destination);
       router.refresh();
     } catch (submitError) {
       console.error('Authentication request failed:', submitError);

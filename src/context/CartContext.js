@@ -1,52 +1,154 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
-const CartContext = createContext();
+const CartContext = createContext(null);
+const GUEST_CART_KEY = 'bstore_cart';
+
+function readCart(key) {
+  try {
+    const storedCart = localStorage.getItem(key);
+    if (!storedCart) return [];
+
+    const parsedCart = JSON.parse(storedCart);
+    if (!Array.isArray(parsedCart)) {
+      throw new Error(`Stored cart "${key}" is not an array.`);
+    }
+
+    return parsedCart.filter(
+      (item) =>
+        item &&
+        typeof item._id === 'string' &&
+        typeof item.name === 'string' &&
+        Number.isFinite(item.price) &&
+        Number.isInteger(item.quantity) &&
+        item.quantity > 0
+    );
+  } catch (error) {
+    console.error('Unable to read saved cart:', error);
+    return [];
+  }
+}
 
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
+  const [user, setUser] = useState(null);
+  const [cartKey, setCartKey] = useState(GUEST_CART_KEY);
+  const [isCartLoaded, setIsCartLoaded] = useState(false);
 
   useEffect(() => {
-    const savedCart = localStorage.getItem('bstore_cart');
-    if (savedCart) {
+    let mounted = true;
+
+    async function loadCartForSession() {
+      setIsCartLoaded(false);
+
+      let sessionUser = null;
       try {
-        setCart(JSON.parse(savedCart));
-      } catch (e) {}
+        const response = await fetch('/api/auth/session');
+        if (!response.ok) throw new Error('Unable to load account session.');
+        const data = await response.json();
+        sessionUser = data.user;
+      } catch (error) {
+        console.error('Unable to check cart account session:', error);
+      }
+
+      if (!mounted) return;
+
+      const nextKey = sessionUser ? `${GUEST_CART_KEY}_${sessionUser.id}` : GUEST_CART_KEY;
+      let nextCart = readCart(nextKey);
+
+      if (sessionUser && nextCart.length === 0) {
+        const guestCart = readCart(GUEST_CART_KEY);
+        if (guestCart.length > 0) {
+          nextCart = guestCart;
+          try {
+            localStorage.setItem(nextKey, JSON.stringify(guestCart));
+            localStorage.removeItem(GUEST_CART_KEY);
+          } catch (error) {
+            console.error('Unable to move guest cart to account storage:', error);
+          }
+        }
+      }
+
+      setUser(sessionUser);
+      setCartKey(nextKey);
+      setCart(nextCart);
+      setIsCartLoaded(true);
     }
+
+    loadCartForSession();
+    window.addEventListener('bstore-auth-changed', loadCartForSession);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('bstore-auth-changed', loadCartForSession);
+    };
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('bstore_cart', JSON.stringify(cart));
-  }, [cart]);
+    if (!isCartLoaded) return;
+
+    try {
+      localStorage.setItem(cartKey, JSON.stringify(cart));
+    } catch (error) {
+      console.error('Unable to save cart:', error);
+    }
+  }, [cart, cartKey, isCartLoaded]);
 
   const addToCart = (product, size) => {
-    setCart((prev) => {
-      const existingIndex = prev.findIndex(
+    setCart((previousCart) => {
+      const existingIndex = previousCart.findIndex(
         (item) => item._id === product._id && item.size === size
       );
       if (existingIndex > -1) {
-        const updated = [...prev];
-        updated[existingIndex].quantity += 1;
-        return updated;
+        return previousCart.map((item, index) =>
+          index === existingIndex ? { ...item, quantity: item.quantity + 1 } : item
+        );
       }
-      return [...prev, { ...product, size, quantity: 1 }];
+
+      return [...previousCart, { ...product, size, quantity: 1 }];
     });
   };
 
+  const updateQuantity = (id, size, quantity) => {
+    if (!Number.isInteger(quantity) || quantity < 1) return;
+
+    setCart((previousCart) =>
+      previousCart.map((item) =>
+        item._id === id && item.size === size ? { ...item, quantity } : item
+      )
+    );
+  };
+
   const removeFromCart = (id, size) => {
-    setCart((prev) => prev.filter((item) => !(item._id === id && item.size === size)));
+    setCart((previousCart) =>
+      previousCart.filter((item) => !(item._id === id && item.size === size))
+    );
   };
 
   const clearCart = () => setCart([]);
-
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, totalAmount }}>
+    <CartContext.Provider
+      value={{
+        cart,
+        user,
+        isCartLoaded,
+        addToCart,
+        updateQuantity,
+        removeFromCart,
+        clearCart,
+        totalAmount,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );
 }
 
-export const useCart = () => useContext(CartContext);
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (!context) throw new Error('useCart must be used within a CartProvider.');
+  return context;
+};
